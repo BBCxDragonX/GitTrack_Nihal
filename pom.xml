@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.dreamboat</groupId>
-    <artifactId>NRCorp</artifactId>
+    <artifactId>GitTrack</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -14,6 +14,19 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-web -->
+
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.12</artifactId>
+            <version>3.3.0</version> <!-- Match with your Spark version -->
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_2.12</artifactId>
+            <version>3.3.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -53,7 +66,5 @@
         <artifactId>jackson-annotations</artifactId>
         <version>2.12.3</version>
         </dependency>
-
-
     </dependencies>
 </project>

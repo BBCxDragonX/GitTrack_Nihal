@@ -3,23 +3,29 @@ package com.dreamboat.serviceNmain;
 import com.dreamboat.practiceModel.MenuItems;
 import com.dreamboat.practiceModel.Orders;
 import com.dreamboat.practiceModel.RestaurantManager;
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.random.Well19937c;
 
 import java.util.*;
 
 public class RestaurantService {
-
-
     private final List<MenuItems> menuItems;  // Use final for immutable data
-    private final Map<Orders, List<MenuItems>> orders;  // Use final for immutable data
     private Double totalBill;
 
     public RestaurantService() {
         this.menuItems = this.addItems(); // Initialize in constructor for single instance
-        this.orders = new HashMap<>(); // Initialize in constructor for single instance
     }
 
     public String toOrdersString(Orders orders) {
-        return orders.getId() + "\n" + orders.getItems() + "\n" + orders.getTotal();
+        return "order id: " + orders.getId() + "\n" + "SelectedMenuList: "+"\n"+ListOfMenuItems(orders.getOrdereditems()) + "\n" +"TotalBill: "+ orders.getTotal();
+    }
+
+    public String ListOfMenuItems(List<MenuItems> litems){
+        String loitems = "";
+        for(MenuItems mitems : litems){
+            loitems = "\n" + toMenuItems(mitems);
+        }
+        return loitems;
     }
 
     public String toMenuItems(MenuItems menutems) {
@@ -46,36 +52,43 @@ public class RestaurantService {
         return id.nextInt();
     }
 
-    public String getMenuItemwithId() {
+    public MenuItems getMenuItemwithId() {
         int id = chooseOptionFromMenu();
         for (MenuItems menutems : menuItems) {
             if (menutems.getId() == id) {
-                return toMenuItems(menutems);
+                return menutems;
             }
         }
         return null;
     }
 
-    public void writeItemToOrder(Orders order) {
-        int itemenud = chooseOptionFromMenu();
-        if (itemenud != 0) {
-            MenuItems selectedItem = null;
-            for (MenuItems menutems : menuItems) {
-                if (menutems.getId() == itemenud) {
-                    selectedItem = menutems;
-                    break; // Exit loop after finding the item
+    public String writeItemToOrder() {
+        List<MenuItems> ordditems = new ArrayList<>();
+        Orders order = new Orders(1,ordditems,500);
+        order.setId(1);
+        boolean status = true;
+        while(status){
+            if(null == getMenuItemwithId()){
+                System.out.println("You have not chosen anything");
+            }
+            else{
+                ordditems.add(getMenuItemwithId());
+                order.setOrdereditems(ordditems);
+                System.out.println("Would you like to continue?\nIf Yes press 'anything else' or else press 'exit'");
+                Scanner ch = new Scanner(System.in);
+                if(ch.nextLine().equalsIgnoreCase("exit")){
+                    status = false;
+                }
+                else{
+                    writeItemToOrder();
                 }
             }
-            if (selectedItem != null) {
-                List<MenuItems> orderItems = orders.getOrDefault(order, new ArrayList<>()); // Get existing or create new list
-                orderItems.add(selectedItem);
-                orders.put(order, orderItems); // Update map with potentially modified list
-            }
-        }
+
+        }return toOrdersString(order);
     }
 
     public static void main(String[] args) {
         RestaurantService rs = new RestaurantService();
-        System.out.println(rs.getMenuItemwithId());
+        System.out.println(rs.writeItemToOrder());
     }
 }

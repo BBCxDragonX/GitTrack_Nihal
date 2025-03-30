@@ -1,0 +1,397 @@
+{
+  "type" : "struct",
+  "fields" : [ {
+    "name" : "orderId",
+    "dataType" : "string",
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "customer",
+    "type" : "struct",
+    "fields" : [ {
+      "name" : "customerId",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "name",
+      "type" : "struct",
+      "fields" : [ {
+        "name" : "first",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "middle",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "last",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      } ],
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "contactDetails",
+      "type" : "struct",
+      "fields" : [ {
+        "name" : "email",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "phoneNumbers",
+        "type" : {
+          "type" : "array",
+          "elementType" : {
+            "type" : "struct",
+            "fields" : [ {
+              "name" : "type",
+              "dataType" : "string",
+              "metadata" : { },
+              "nullable" : true
+            }, {
+              "name" : "number",
+              "dataType" : "string",
+              "metadata" : { },
+              "nullable" : true
+            }, {
+              "name" : "extension",
+              "dataType" : "string",
+              "metadata" : { },
+              "nullable" : true
+            } ]
+          },
+          "containsNull" : true
+        },
+        "metadata" : { },
+        "nullable" : true
+      } ],
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "addresses",
+      "type" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "struct",
+          "fields" : [ {
+            "name" : "type",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "street",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "city",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "state",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "zipCode",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "country",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          } ]
+        },
+        "containsNull" : true
+      },
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "preferences",
+      "type" : "struct",
+      "fields" : [ {
+        "name" : "newsletterSubscribed",
+        "dataType" : "boolean",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "preferredLanguage",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "paymentMethods",
+        "type" : {
+          "type" : "array",
+          "elementType" : { },
+          "containsNull" : true
+        },
+        "metadata" : { },
+        "nullable" : true
+      } ],
+      "metadata" : { },
+      "nullable" : true
+    } ],
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "items",
+    "type" : {
+      "type" : "array",
+      "elementType" : {
+        "type" : "struct",
+        "fields" : [ {
+          "name" : "productId",
+          "dataType" : "string",
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "name",
+          "dataType" : "string",
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "category",
+          "dataType" : "string",
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "quantity",
+          "dataType" : "integer",
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "price",
+          "dataType" : "double",
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "attributes",
+          "type" : "struct",
+          "fields" : [ {
+            "name" : "brand",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "storage",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "color",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "features",
+            "type" : {
+              "type" : "array",
+              "elementType" : { },
+              "containsNull" : true
+            },
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "batteryLife",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          } ],
+          "metadata" : { },
+          "nullable" : true
+        }, {
+          "name" : "discounts",
+          "type" : {
+            "type" : "array",
+            "elementType" : {
+              "type" : "struct",
+              "fields" : [ {
+                "name" : "type",
+                "dataType" : "string",
+                "metadata" : { },
+                "nullable" : true
+              }, {
+                "name" : "value",
+                "dataType" : "integer",
+                "metadata" : { },
+                "nullable" : true
+              } ]
+            },
+            "containsNull" : true
+          },
+          "metadata" : { },
+          "nullable" : true
+        } ]
+      },
+      "containsNull" : true
+    },
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "orderStatus",
+    "dataType" : "string",
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "shippingDetails",
+    "type" : "struct",
+    "fields" : [ {
+      "name" : "carrier",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "trackingNumber",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "estimatedDelivery",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "deliveryAddress",
+      "type" : "struct",
+      "fields" : [ {
+        "name" : "street",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "city",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "state",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "zipCode",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "country",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      } ],
+      "metadata" : { },
+      "nullable" : true
+    } ],
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "payment",
+    "type" : "struct",
+    "fields" : [ {
+      "name" : "method",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "transactionId",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "amount",
+      "dataType" : "double",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "currency",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "billingAddress",
+      "type" : "struct",
+      "fields" : [ {
+        "name" : "street",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "city",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "state",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "zipCode",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      }, {
+        "name" : "country",
+        "dataType" : "string",
+        "metadata" : { },
+        "nullable" : true
+      } ],
+      "metadata" : { },
+      "nullable" : true
+    } ],
+    "metadata" : { },
+    "nullable" : true
+  }, {
+    "name" : "metadata",
+    "type" : "struct",
+    "fields" : [ {
+      "name" : "createdAt",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "updatedAt",
+      "dataType" : "string",
+      "metadata" : { },
+      "nullable" : true
+    }, {
+      "name" : "notes",
+      "type" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "struct",
+          "fields" : [ {
+            "name" : "timestamp",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "author",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          }, {
+            "name" : "message",
+            "dataType" : "string",
+            "metadata" : { },
+            "nullable" : true
+          } ]
+        },
+        "containsNull" : true
+      },
+      "metadata" : { },
+      "nullable" : true
+    } ],
+    "metadata" : { },
+    "nullable" : true
+  } ]
+}
