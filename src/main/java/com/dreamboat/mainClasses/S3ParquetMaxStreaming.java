@@ -1,5 +1,4 @@
 package com.dreamboat.mainClasses;
-
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -13,8 +12,6 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class S3ParquetMaxStreaming {
@@ -25,6 +22,11 @@ public class S3ParquetMaxStreaming {
         }
         String s3FolderPath = args[0];
         String columnName = args[1];
+
+        if (!s3FolderPath.startsWith("s3a://")) {
+            throw new IllegalArgumentException("Invalid S3 path. Must start with s3a://");
+        }
+
         try {
             Comparable<?> maxValue = findMaxValueInColumn(s3FolderPath, columnName);
             System.out.println("Max value in column '" + columnName + "': " + maxValue);
@@ -35,12 +37,15 @@ public class S3ParquetMaxStreaming {
         }
     }
 
-    public static Comparable<?> findMaxValueInColumn(String s3FolderPath, String columnName) throws IOException, URISyntaxException {
+    public static Comparable<?> findMaxValueInColumn(String s3FolderPath, String columnName) throws IOException {
         Configuration conf = new Configuration();
         conf.set("fs.s3a.aws.credentials.provider", DefaultAWSCredentialsProviderChain.class.getName());
         conf.set("fs.s3a.impl", S3AFileSystem.class.getName());
+        conf.set("fs.s3a.path.style.access", "true");
+        conf.set("fs.s3a.connection.ssl.enabled", "true");
+        conf.set("fs.s3a.fast.upload", "true");
 
-        Path path = new Path(new URI(s3FolderPath));
+        Path path = new Path(s3FolderPath);
         AtomicReference<Comparable<?>> maxValue = new AtomicReference<>(null);
 
         try (ParquetFileReader fileReader = ParquetFileReader.open(conf, path)) {
