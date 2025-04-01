@@ -11,9 +11,12 @@ import org.apache.parquet.hadoop.example.GroupReadSupport;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
+import org.apache.parquet.io.api.Binary;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class S3ParquetMaxValue {
@@ -49,8 +52,6 @@ public class S3ParquetMaxValue {
         conf.set("fs.s3a.fast.upload", "true");
 
         FileSystem fs = FileSystem.get(new URI(s3FolderPath), conf);
-
-        // ✅ List all Parquet files in the folder
         RemoteIterator<LocatedFileStatus> fileIterator = fs.listFiles(new Path(s3FolderPath), true);
         AtomicReference<Comparable<?>> maxValue = new AtomicReference<>(null);
 
@@ -58,8 +59,6 @@ public class S3ParquetMaxValue {
             LocatedFileStatus fileStatus = fileIterator.next();
             if (fileStatus.getPath().getName().endsWith(".parquet")) {
                 System.out.println("Processing file: " + fileStatus.getPath());
-
-                // Process each Parquet file individually
                 Comparable<?> fileMaxValue = processParquetFile(conf, fileStatus.getPath(), columnName);
                 if (fileMaxValue != null) {
                     maxValue.updateAndGet(currentMax ->
@@ -124,9 +123,24 @@ public class S3ParquetMaxValue {
                 return group.getString(fieldIndex, 0);
             case BOOLEAN:
                 return group.getBoolean(fieldIndex, 0);
+            case INT96:
+                return convertInt96ToTimestamp(group.getBinary(fieldIndex, 0));
             default:
                 throw new UnsupportedOperationException("Unsupported column type: " + fieldType);
         }
+    }
+
+    private static String convertInt96ToTimestamp(Binary binary) {
+        ByteBuffer buffer = binary.toByteBuffer();
+        buffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+
+        long nanos = buffer.getLong();
+        int julianDay = buffer.getInt();
+
+        long epochSeconds = (julianDay - 2440588L) * 86400L;
+        Instant instant = Instant.ofEpochSecond(epochSeconds, nanos);
+
+        return instant.toString();
     }
 
     @SuppressWarnings("unchecked")
