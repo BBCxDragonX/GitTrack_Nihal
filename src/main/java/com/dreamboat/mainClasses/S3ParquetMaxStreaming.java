@@ -1,136 +1,39 @@
 package com.dreamboat.mainClasses;
 
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.*;
-import org.apache.hadoop.fs.s3a.S3AFileSystem;
-import org.apache.parquet.example.data.Group;
-import org.apache.parquet.hadoop.ParquetFileReader;
-import org.apache.parquet.hadoop.ParquetReader;
-import org.apache.parquet.hadoop.example.GroupReadSupport;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.Type;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.concurrent.atomic.AtomicReference;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import static org.apache.spark.sql.functions.*;
 
 public class S3ParquetMaxStreaming {
     public static void main(String[] args) {
-        if (args.length < 2) {
-            System.err.println("Usage: java S3ParquetMaxValue <s3FolderPath> <columnName>");
-            System.exit(1);
+        // S3 Path and Column Name
+        String s3Path = "s3a://your-bucket/path/to/parquet";
+        String columnName = "your_column_name";
+
+        // Initialize Spark Session
+        SparkSession spark = SparkSession.builder()
+                .appName("Read Max Value from S3 Parquet")
+                .config("spark.hadoop.fs.s3a.access.key", "your-access-key")
+                .config("spark.hadoop.fs.s3a.secret.key", "your-secret-key")
+                .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
+                .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+                .master("local[*]") // Remove for cluster execution
+                .getOrCreate();
+
+        // Read Parquet file from S3
+        Dataset<Row> parquetData = spark.read().parquet(s3Path);
+
+        // Compute max value of the specified column
+        Row maxRow = parquetData.agg(max(columnName)).first();
+
+        if (maxRow != null) {
+            System.out.println("Max value in column " + columnName + ": " + maxRow.get(0));
+        } else {
+            System.out.println("No data found in the specified column.");
         }
 
-        String s3FolderPath = args[0];
-        String columnName = args[1];
-
-        if (!s3FolderPath.startsWith("s3a://")) {
-            throw new IllegalArgumentException("Invalid S3 path. Must start with s3a://");
-        }
-
-        try {
-            Comparable<?> maxValue = findMaxValueInColumn(s3FolderPath, columnName);
-            System.out.println("Max value in column '" + columnName + "': " + maxValue);
-        } catch (Exception e) {
-            System.err.println("Error processing Parquet files: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        }
-    }
-
-    public static Comparable<?> findMaxValueInColumn(String s3FolderPath, String columnName) throws Exception {
-        Configuration conf = new Configuration();
-        conf.set("fs.s3a.aws.credentials.provider", DefaultAWSCredentialsProviderChain.class.getName());
-        conf.set("fs.s3a.impl", S3AFileSystem.class.getName());
-        conf.set("fs.s3a.path.style.access", "true");
-        conf.set("fs.s3a.connection.ssl.enabled", "true");
-        conf.set("fs.s3a.fast.upload", "true");
-
-        FileSystem fs = FileSystem.get(new URI(s3FolderPath), conf);
-
-        // ✅ List all Parquet files in the folder
-        RemoteIterator<LocatedFileStatus> fileIterator = fs.listFiles(new Path(s3FolderPath), true);
-        AtomicReference<Comparable<?>> maxValue = new AtomicReference<>(null);
-
-        while (fileIterator.hasNext()) {
-            LocatedFileStatus fileStatus = fileIterator.next();
-            if (fileStatus.getPath().getName().endsWith(".parquet")) {
-                System.out.println("Processing file: " + fileStatus.getPath());
-
-                // Process each Parquet file individually
-                Comparable<?> fileMaxValue = processParquetFile(conf, fileStatus.getPath(), columnName);
-                if (fileMaxValue != null) {
-                    maxValue.updateAndGet(currentMax ->
-                            (currentMax == null || compareValues(fileMaxValue, currentMax) > 0) ? fileMaxValue : currentMax);
-                }
-            }
-        }
-
-        if (maxValue.get() == null) {
-            throw new RuntimeException("No values found in column '" + columnName + "'");
-        }
-        return maxValue.get();
-    }
-
-    private static Comparable<?> processParquetFile(Configuration conf, Path filePath, String columnName) throws IOException {
-        AtomicReference<Comparable<?>> fileMaxValue = new AtomicReference<>(null);
-
-        try (ParquetFileReader fileReader = ParquetFileReader.open(conf, filePath)) {
-            ParquetMetadata metadata = fileReader.getFooter();
-            MessageType schema = metadata.getFileMetaData().getSchema();
-
-            if (!schema.containsField(columnName)) {
-                throw new IllegalArgumentException("Column '" + columnName + "' not found in Parquet schema");
-            }
-
-            int fieldIndex = schema.getFieldIndex(columnName);
-            Type fieldType = schema.getType(fieldIndex);
-
-            GroupReadSupport readSupport = new GroupReadSupport();
-            readSupport.init(conf, metadata.getFileMetaData().getKeyValueMetaData(), schema);
-
-            try (ParquetReader<Group> reader = ParquetReader.builder(readSupport, filePath)
-                    .withConf(conf)
-                    .build()) {
-                Group group;
-                while ((group = reader.read()) != null) {
-                    Comparable<?> currentValue = getValueFromGroup(group, fieldIndex, fieldType);
-                    if (currentValue != null) {
-                        fileMaxValue.updateAndGet(currentMax ->
-                                (currentMax == null || compareValues(currentValue, currentMax) > 0) ? currentValue : currentMax);
-                    }
-                }
-            }
-        }
-        return fileMaxValue.get();
-    }
-
-    private static Comparable<?> getValueFromGroup(Group group, int fieldIndex, Type fieldType) {
-        if (group.getFieldRepetitionCount(fieldIndex) == 0) {
-            return null;
-        }
-        switch (fieldType.asPrimitiveType().getPrimitiveTypeName()) {
-            case INT32:
-                return group.getInteger(fieldIndex, 0);
-            case INT64:
-                return group.getLong(fieldIndex, 0);
-            case FLOAT:
-                return group.getFloat(fieldIndex, 0);
-            case DOUBLE:
-                return group.getDouble(fieldIndex, 0);
-            case BINARY:
-                return group.getString(fieldIndex, 0);
-            case BOOLEAN:
-                return group.getBoolean(fieldIndex, 0);
-            default:
-                throw new UnsupportedOperationException("Unsupported column type: " + fieldType);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static int compareValues(Comparable<?> a, Comparable<?> b) {
-        return ((Comparable<Object>) a).compareTo(b);
+        // Stop Spark session
+        spark.stop();
     }
 }
