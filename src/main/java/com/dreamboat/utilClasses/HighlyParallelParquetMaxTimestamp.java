@@ -2,7 +2,6 @@ package com.dreamboat.utilClasses;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Logger;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -17,6 +16,7 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
@@ -32,7 +32,7 @@ import java.util.concurrent.*;
 
 public class HighlyParallelParquetMaxTimestamp {
 
-    private static final Logger logger = (Logger) LoggerFactory.getLogger(HighlyParallelParquetMaxTimestamp.class);
+    private static final Logger logger = LoggerFactory.getLogger(HighlyParallelParquetMaxTimestamp.class);
     private static final long JULIAN_DAY_OF_EPOCH = 2440588L; // Julian day for 1970-01-01
     private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1); // Milliseconds in a day
     private static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
@@ -175,54 +175,78 @@ public class HighlyParallelParquetMaxTimestamp {
      * Optimized for speed within the parallel task.
      */
     private static Timestamp processSingleFile(Configuration conf, Path filePath, String columnName) {
-        // Simplified version of findMaxFromStats - focuses only on getting max Timestamp or null
-        // Contains the logic to read footer, find column chunk stats, get max Binary, parse INT96
-        // Returns null if column/stats not found, parsing fails, or other error occurs for this file.
-        // MUST include try-catch blocks internally to prevent single file failure from killing the thread.
-
-        logger.debug("Processing file: {}");
+        logger.info("START Processing file: {}", filePath); // Log start
         ParquetMetadata footer = null;
         try {
-            footer = ParquetFileReader.readFooter(conf, filePath); // S3 Read happens here
-            PrimitiveType columnType = getColumnPrimitiveType(footer, columnName); // Reuse from previous example
+            footer = ParquetFileReader.readFooter(conf, filePath);
+            PrimitiveType columnType = getColumnPrimitiveType(footer, columnName);
 
             if (columnType.getPrimitiveTypeName() != PrimitiveType.PrimitiveTypeName.INT96) {
-                logger.warn("Column {} in file {} is not INT96. Skipping timestamp processing for this file.");
-                return null; // Or handle other types if needed
+                logger.warn("[{}] Column {} type is {}. Expected INT96. Returning null.", filePath.getName(), columnName, columnType.getPrimitiveTypeName());
+                return null;
             }
 
             Timestamp fileMaxTimestamp = null;
             List<BlockMetaData> blocks = footer.getBlocks();
+            if (blocks.isEmpty()) {
+                logger.warn("[{}] File contains no blocks. Returning null.", filePath.getName());
+                return null;
+            }
 
+            boolean processedAnyChunk = false;
             for (BlockMetaData block : blocks) {
-                ColumnChunkMetaData chunkMeta = findColumnChunkMetadata(block, columnName); // Reuse from previous
+                ColumnChunkMetaData chunkMeta = findColumnChunkMetadata(block, columnName);
                 if (chunkMeta != null) {
                     Statistics<?> stats = chunkMeta.getStatistics();
-                    if (stats != null && !stats.isEmpty() && stats.hasNonNullValue()) {
+                    // Log detailed stats info
+                    long numNulls = stats != null ? stats.getNumNulls() : -1;
+                    boolean hasNonNull = stats != null && stats.hasNonNullValue();
+                    logger.debug("[{}] Chunk {}: Found metadata for {}. NumNulls: {}, HasNonNullValue: {}, ChunkValueCount: {}",
+                            filePath.getName(), blocks.indexOf(block), columnName, numNulls, hasNonNull, chunkMeta.getValueCount());
+
+                    if (stats != null && !stats.isEmpty() && hasNonNull) {
                         Object maxObj = stats.genericGetMax();
-                        if (maxObj instanceof Binary) {
+                        logger.debug("[{}] Chunk {}: Max stat object retrieved: {}", filePath.getName(), blocks.indexOf(block), maxObj); // Log raw max object
+
+                        if (maxObj != null && maxObj instanceof Binary) {
+                            Binary maxBinary = (Binary) maxObj;
+                            // Log binary before parsing (e.g., length and Base64)
+                            logger.debug("[{}] Chunk {}: Max Binary length: {}, Base64: {}",
+                                    filePath.getName(), blocks.indexOf(block), maxBinary.length(),
+                                    java.util.Base64.getEncoder().encodeToString(maxBinary.getBytes()));
                             try {
-                                Timestamp chunkMaxTs = parseInt96ToTimestamp((Binary) maxObj); // Reuse from previous
+                                Timestamp chunkMaxTs = parseInt96ToTimestamp(maxBinary);
+                                processedAnyChunk = true; // Mark that we processed at least one valid stat
                                 if (fileMaxTimestamp == null || chunkMaxTs.after(fileMaxTimestamp)) {
                                     fileMaxTimestamp = chunkMaxTs;
+                                    logger.debug("[{}] Chunk {}: Updated fileMaxTimestamp: {}", filePath.getName(), blocks.indexOf(block), fileMaxTimestamp);
                                 }
                             } catch (IllegalArgumentException parseEx) {
-                                logger.warn("Failed to parse INT96 statistic for column {} in file {}. Skipping chunk stat. Error: {}"
-                                );
+                                logger.warn("[{}] Chunk {}: Failed to parse INT96 statistic for column {}. Skipping chunk stat. Error: {}",
+                                        filePath.getName(), blocks.indexOf(block), columnName, parseEx.getMessage());
                             }
-                        } else {
-                            logger.warn("Expected Binary statistic for INT96 column {} in file {}, but got {}. Skipping chunk stat."
-                            );
+                        } else { // Log why the check failed
+                            logger.warn("[{}] Chunk {}: Max stat object null or not Binary (Type: {}). Skipping chunk stat.",
+                                    filePath.getName(), blocks.indexOf(block), maxObj != null ? maxObj.getClass().getName() : "null");
                         }
+                    } else {
+                        logger.warn("[{}] Chunk {}: Statistics missing, empty, or no non-null values for {}. Skipping chunk stat.",
+                                filePath.getName(), blocks.indexOf(block), columnName);
                     }
+                } else {
+                    logger.debug("[{}] Chunk {}: Column {} not found in this chunk's metadata.", filePath.getName(), blocks.indexOf(block), columnName);
                 }
+            } // end block loop
+
+            if (!processedAnyChunk && fileMaxTimestamp == null) {
+                logger.warn("[{}] No processable statistics found for column {} in any chunk. Returning null.", filePath.getName(), columnName);
+                // return null; // Already the default if fileMaxTimestamp is null
             }
-            logger.debug("Max timestamp for file {}: {}");
-            return fileMaxTimestamp; // Max timestamp found in this file's stats, or null
+            logger.info("END Processing file: {}. Result: {}", filePath.getName(), fileMaxTimestamp);
+            return fileMaxTimestamp;
 
         } catch (Exception e) {
-            // Log file-specific errors and return null so other tasks continue
-            logger.error("Failed to process file {}: {}");
+            logger.error("FAIL Processing file {}: {}. Returning null.", filePath, e.getMessage(), e);
             return null;
         }
     }
