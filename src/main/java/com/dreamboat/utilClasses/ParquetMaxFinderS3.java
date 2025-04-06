@@ -1,6 +1,5 @@
-package com.dreamboat.mainClasses;
+package com.dreamboat.utilClasses;
 
-import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.List;
