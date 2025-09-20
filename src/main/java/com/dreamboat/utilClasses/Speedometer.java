@@ -1,15 +1,18 @@
-package com.dreamboat.mainClasses;
+package com.dreamboat.utilClasses;
 
-public class TestClass {
-    // Volatile flag to control the loop
-    private static volatile boolean keepRunning = true;
+import com.dreamboat.serviceNmain.CarService;
+
+public class Speedometer {
+   private static volatile boolean keepRunning = true;
 
     public static void main(String[] args) {
         // Start the endless loop in a separate thread
+        System.out.println("Press Enter to stop the loop...");
+        CarService cserv = new CarService();
         Thread loopThread = new Thread(() -> {
             while (keepRunning) {
                 try {
-                    System.out.println("Loop is running...");
+                    cserv.captureSpeed();
                     Thread.sleep(1000); // Simulate work with a delay
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -23,7 +26,6 @@ public class TestClass {
 
         // Simulate external input to stop the loop
         try (java.util.Scanner scanner = new java.util.Scanner(System.in)) {
-            System.out.println("Press Enter to stop the loop...");
             scanner.nextLine(); // Wait for user input
         }
 
@@ -39,4 +41,3 @@ public class TestClass {
         System.out.println("Program terminated.");
     }
 }
-
