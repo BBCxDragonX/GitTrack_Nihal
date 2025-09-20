@@ -37,6 +37,10 @@ public class AddTwoNumbers {
             }
             head = head.next;
         }
+
+    }
+    public int add(int a, int b){
+        return 1+2;
     }
 }
 
